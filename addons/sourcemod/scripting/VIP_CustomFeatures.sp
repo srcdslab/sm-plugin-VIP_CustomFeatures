@@ -324,7 +324,9 @@ public SMCResult OnKeyValue(Handle hSMC, const char[] szKey, const char[] szValu
     return SMCParse_HaltFail;
 }
 
-public SMCResult OnEndSection(Handle hSMC) {}
+public SMCResult OnEndSection(Handle hSMC) {
+    return SMCParse_Continue;
+}
 
 /**
  * @section Command Listener
