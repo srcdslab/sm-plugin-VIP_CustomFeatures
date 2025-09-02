@@ -40,7 +40,7 @@
  * @section Constants
  */
 #define PLUGIN_DESCRIPTION  "Custom Items in VIP Menu."
-#define PLUGIN_VERSION      "1.3"
+#define PLUGIN_VERSION      "1.3.1"
 #define PLUGIN_AUTHOR       "CrazyHackGUT aka Kruzya"
 #define PLUGIN_NAME         "[VIP] Custom Features"
 #define PLUGIN_URL          "https://kruzefag.ru/"
@@ -236,6 +236,9 @@ public bool VIP_OnRenderTextItem(int iClient, const char[] szFeatureName, char[]
  * @section Executor
  */
 void VIP_ExecuteFeature(int iClient, const char[] szFeatureName) {
+    if (!client || !IsClientInGame(client) || IsFakeClient(client))
+        return;
+
     int iLength = GetArraySize(g_hFeatures);
     if (iLength == 0)
         return;
