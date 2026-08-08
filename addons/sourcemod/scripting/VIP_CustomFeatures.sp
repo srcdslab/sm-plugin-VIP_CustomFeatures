@@ -40,7 +40,7 @@
  * @section Constants
  */
 #define PLUGIN_DESCRIPTION  "Custom Items in VIP Menu."
-#define PLUGIN_VERSION      "1.3.1"
+#define PLUGIN_VERSION      "1.3.2"
 #define PLUGIN_AUTHOR       "CrazyHackGUT aka Kruzya"
 #define PLUGIN_NAME         "[VIP] Custom Features"
 #define PLUGIN_URL          "https://kruzefag.ru/"
@@ -194,7 +194,9 @@ void VIP_UnloadFeatures() {
         GetTrieString(hFeatureInformation, "Feature", SZFA(szTemp, 0));
 
         // Unregister feature, if exists.
-        VIP_IsValidFeature(szTemp[0]) && VIP_UnregisterFeature(szTemp[0]);
+        if (VIP_IsValidFeature(szTemp[0])) {
+            VIP_UnregisterFeature(szTemp[0]);
+        }
 
         // Unregister listener, if registered.
         int iListenerState;
