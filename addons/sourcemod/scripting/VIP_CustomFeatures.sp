@@ -194,7 +194,9 @@ void VIP_UnloadFeatures() {
         GetTrieString(hFeatureInformation, "Feature", SZFA(szTemp, 0));
 
         // Unregister feature, if exists.
-        VIP_IsValidFeature(szTemp[0]) && VIP_UnregisterFeature(szTemp[0]);
+        if (VIP_IsValidFeature(szTemp[0])) {
+            VIP_UnregisterFeature(szTemp[0]);
+        }
 
         // Unregister listener, if registered.
         int iListenerState;
