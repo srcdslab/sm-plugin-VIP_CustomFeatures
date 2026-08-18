@@ -9,10 +9,10 @@ This repository contains a SourcePawn plugin for SourceMod that extends VIP Core
 ## Technology Stack
 
 - **Language**: SourcePawn (Source engine scripting language)
-- **Platform**: SourceMod 1.11.0+ (minimum version for compatibility)
-- **Build Tool**: SourceKnight (modern SourcePawn build system)
+- **Platform**: SourceMod 1.12.x
+- **Build Tool**: native GitHub Actions using rumblefrog/setup-sp (spcomp)
 - **Dependencies**:
-  - SourceMod 1.11.0-git6917 (framework)
+  - SourceMod 1.12.x (framework)
   - VIP Core plugin (provides VIP menu system)
 - **CI/CD**: GitHub Actions with automated building, packaging, and releases
 
@@ -27,7 +27,6 @@ This repository contains a SourcePawn plugin for SourceMod that extends VIP Core
 │   │   └── VIP_CustomFeatures.sp # Main plugin source
 │   └── data/vip/modules/
 │       └── custom_items.cfg      # Feature configuration
-├── sourceknight.yaml             # Build configuration
 └── .gitignore                    # Git ignore rules
 ```
 
@@ -87,15 +86,18 @@ delete hHandle;                  // Use delete, never CloseHandle
 ## Build and Development Workflow
 
 ### Building the Plugin
+Builds run via native GitHub Actions (`.github/workflows/ci.yml`):
+1. `rumblefrog/setup-sp` installs the SourcePawn compiler (SourceMod 1.12.x).
+2. The VIP Core include dependency is cloned from `srcdslab/sm-plugin-VIP-Core`
+   into `addons/sourcemod/scripting/include/`.
+3. `spcomp` compiles `VIP_CustomFeatures.sp` into `addons/sourcemod/plugins/`.
+
+To build locally, install `spcomp` matching SourceMod 1.12.x, place the VIP
+Core includes under `addons/sourcemod/scripting/include/`, then run:
 ```bash
-# Install SourceKnight (if not available)
-pip install sourceknight
-
-# Build using SourceKnight
-sourceknight build
-
-# Build artifacts are placed in .sourceknight/package/
+spcomp -i include -o ../plugins/VIP_CustomFeatures.smx VIP_CustomFeatures.sp
 ```
+(from `addons/sourcemod/scripting/`)
 
 ### Development Commands
 ```bash
@@ -108,7 +110,7 @@ sm plugins list VIP_CustomFeatures
 
 ### CI/CD Pipeline
 - **Trigger**: Push to any branch or PR
-- **Build**: Compiles plugin using SourceKnight
+- **Build**: Compiles plugin using `spcomp` (via `rumblefrog/setup-sp`)
 - **Package**: Creates deployment-ready package
 - **Release**: Auto-tags and releases on main/master branch
 
