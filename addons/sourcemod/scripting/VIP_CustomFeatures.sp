@@ -40,7 +40,7 @@
  * @section Constants
  */
 #define PLUGIN_DESCRIPTION  "Custom Items in VIP Menu."
-#define PLUGIN_VERSION      "1.3.2"
+#define PLUGIN_VERSION      "1.3.3"
 #define PLUGIN_AUTHOR       "CrazyHackGUT aka Kruzya"
 #define PLUGIN_NAME         "[VIP] Custom Features"
 #define PLUGIN_URL          "https://kruzefag.ru/"
@@ -65,7 +65,7 @@
 /**
  * @section Global Variables
  */
-Handle  g_hFeatures;    /**< All registered features. ArrayList contains StringMaps. */
+ArrayList  g_hFeatures;    /**< All registered features. ArrayList contains StringMaps. */
 int     g_iID;
 
 /**
@@ -84,7 +84,7 @@ public Plugin myinfo = {
  */
 public void OnPluginStart() {
     RegServerCmd("sm_reloadvipci", ReloadCustomItems_Cmd);
-    g_hFeatures = CreateArray(4);
+    g_hFeatures = new ArrayList(4);
 
     LoadTranslations("vip_modules.phrases");
 
@@ -106,20 +106,20 @@ public void OnMapEnd() {
 }
 
 public void VIP_OnVIPLoaded() {
-    int iLength = GetArraySize(g_hFeatures);
+    int iLength = g_hFeatures.Length;
     if (iLength == 0)
         return;
 
     for (int i; i < iLength; i++) {
-        Handle hFeatureInformation = GetArrayCell(g_hFeatures, i);
+        StringMap hFeatureInformation = g_hFeatures.Get(i);
 
         char szTemp[64];
-        GetTrieString(hFeatureInformation, "Feature", SZFS(szTemp));
+        hFeatureInformation.GetString("Feature", SZFS(szTemp));
 
         // Register feature, if not exists.
         if (!VIP_IsValidFeature(szTemp)) {
             VIP_FeatureType eFType;
-            if (!GetTrieValue(hFeatureInformation, "FeatureType", eFType)) {
+            if (!hFeatureInformation.GetValue("FeatureType", eFType)) {
                 eFType = SELECTABLE;
             }
 
@@ -132,7 +132,7 @@ public void VIP_OnVIPLoaded() {
 
             // Register listener.
             char szCmd[2][64];
-            GetTrieString(hFeatureInformation, "Command", SZFS(szTemp));
+            hFeatureInformation.GetString("Command", SZFS(szTemp));
             ExplodeString(szTemp, " ", szCmd, sizeof(szCmd), sizeof(szCmd[]), false);
             AddCommandListener(OnCommandExecuted, szCmd[0]);
         } else {
@@ -155,12 +155,14 @@ public Action ReloadCustomItems_Cmd(int iArgc) {
  * @section Features Loader
  */
 void VIP_LoadFeatures() {
-    static Handle hSMC = nullptr;
+    static SMCParser hSMC = nullptr;
     static char szPath[PMP];
 
     if (!hSMC) {
-        hSMC = SMC_CreateParser();
-        SMC_SetReaders(hSMC, OnNewSection, OnKeyValue, OnEndSection);
+        hSMC = new SMCParser();
+        hSMC.OnEnterSection = OnNewSection;
+        hSMC.OnKeyValue = OnKeyValue;
+        hSMC.OnLeaveSection = OnEndSection;
     }
 
     if (IsEmptyString(szPath)) {
@@ -172,7 +174,7 @@ void VIP_LoadFeatures() {
     }
 
     g_iID = -1;
-    SMCError eError = SMC_ParseFile(hSMC, szPath);
+    SMCError eError = hSMC.ParseFile(szPath);
     if (eError != SMCError_Okay) {
         SetFailState("Couldn't parse configuration file: %s. Error code %d.", szPath, eError);
     }
@@ -183,15 +185,15 @@ void VIP_LoadFeatures() {
 }
 
 void VIP_UnloadFeatures() {
-    int iLength = GetArraySize(g_hFeatures);
+    int iLength = g_hFeatures.Length;
     if (iLength == 0)
         return;
 
     for (int i; i < iLength; i++) {
-        Handle hFeatureInformation = GetArrayCell(g_hFeatures, i);
+        StringMap hFeatureInformation = g_hFeatures.Get(i);
 
         char szTemp[2][64];
-        GetTrieString(hFeatureInformation, "Feature", SZFA(szTemp, 0));
+        hFeatureInformation.GetString("Feature", SZFA(szTemp, 0));
 
         // Unregister feature, if exists.
         if (VIP_IsValidFeature(szTemp[0])) {
@@ -200,10 +202,10 @@ void VIP_UnloadFeatures() {
 
         // Unregister listener, if registered.
         int iListenerState;
-        GetTrieValue(hFeatureInformation, "RestrictAccess", iListenerState);
+        hFeatureInformation.GetValue("RestrictAccess", iListenerState);
 
         if (iListenerState > 0) {
-            GetTrieString(hFeatureInformation, "Command", SZFA(szTemp, 0));
+            hFeatureInformation.GetString("Command", SZFA(szTemp, 0));
             ExplodeString(szTemp[0], " ", szTemp, sizeof(szTemp), sizeof(szTemp[]), false);
             RemoveCommandListener(OnCommandExecuted, szTemp[0]);
         }
@@ -213,7 +215,7 @@ void VIP_UnloadFeatures() {
     }
 
     // Clear array.
-    ClearArray(g_hFeatures);
+    g_hFeatures.Clear();
 }
 
 /**
@@ -241,18 +243,18 @@ void VIP_ExecuteFeature(int iClient, const char[] szFeatureName) {
     if (!iClient || !IsClientInGame(iClient) || IsFakeClient(iClient))
         return;
 
-    int iLength = GetArraySize(g_hFeatures);
+    int iLength = g_hFeatures.Length;
     if (iLength == 0)
         return;
 
     char szFeature[64];
     for (int i; i < iLength; i++) {
-        Handle hFeatureInformation = GetArrayCell(g_hFeatures, i);
-        GetTrieString(hFeatureInformation, "Feature", SZFS(szFeature));
+        StringMap hFeatureInformation = g_hFeatures.Get(i);
+        hFeatureInformation.GetString("Feature", SZFS(szFeature));
 
         if (strcmp(szFeature, szFeatureName, true) == 0) {
             char szCommand[256];
-            GetTrieString(hFeatureInformation, "Command", SZFS(szCommand));
+            hFeatureInformation.GetString("Command", SZFS(szCommand));
 
             FakeClientCommand(iClient, "%s", szCommand);
             return;
@@ -265,17 +267,17 @@ void VIP_ExecuteFeature(int iClient, const char[] szFeatureName) {
 /**
  * @section Config Parsers.
  */
-public SMCResult OnNewSection(Handle hSMC, const char[] szSectionName, bool bOptQuotes) {
+public SMCResult OnNewSection(SMCParser hSMC, const char[] szSectionName, bool bOptQuotes) {
     if (strcmp(szSectionName, "CustomFeatures") == 0)
         return SMCParse_Continue;
 
-    g_iID = PushArrayCell(g_hFeatures, CreateTrie());
-    SetTrieString(GetArrayCell(g_hFeatures, g_iID), "Feature", szSectionName);
+    g_iID = g_hFeatures.Push(new StringMap());
+    view_as<StringMap>(g_hFeatures.Get(g_iID)).SetString("Feature", szSectionName);
 
     return SMCParse_Continue;
 }
 
-public SMCResult OnKeyValue(Handle hSMC, const char[] szKey, const char[] szValue, bool bKeyQuotes, bool bValueQuotes) {
+public SMCResult OnKeyValue(SMCParser hSMC, const char[] szKey, const char[] szValue, bool bKeyQuotes, bool bValueQuotes) {
     if (g_iID == -1) {
         SetFailState("Invalid Config");
     }
@@ -284,7 +286,7 @@ public SMCResult OnKeyValue(Handle hSMC, const char[] szKey, const char[] szValu
      * Trigger.
      */
     if (strcmp(szKey, "Trigger") == 0) {
-        SetTrieString(GetArrayCell(g_hFeatures, g_iID), "Command", szValue);
+        view_as<StringMap>(g_hFeatures.Get(g_iID)).SetString("Command", szValue);
         return SMCParse_Continue;
     }
 
@@ -302,7 +304,7 @@ public SMCResult OnKeyValue(Handle hSMC, const char[] szKey, const char[] szValu
             SetFailState("Invalid Config");
         }
 
-        SetTrieValue(GetArrayCell(g_hFeatures, g_iID), "FeatureType", eFType);
+        view_as<StringMap>(g_hFeatures.Get(g_iID)).SetValue("FeatureType", eFType);
         return SMCParse_Continue;
     }
 
@@ -310,7 +312,7 @@ public SMCResult OnKeyValue(Handle hSMC, const char[] szKey, const char[] szValu
      * Restrict Access.
      */
     if (strcmp(szKey, "RestrictAccess") == 0) {
-        SetTrieValue(GetArrayCell(g_hFeatures, g_iID), "RestrictAccess", StringToInt(szValue));
+        view_as<StringMap>(g_hFeatures.Get(g_iID)).SetValue("RestrictAccess", StringToInt(szValue));
         return SMCParse_Continue;
     }
 
@@ -318,7 +320,7 @@ public SMCResult OnKeyValue(Handle hSMC, const char[] szKey, const char[] szValu
      * PrintToChat
      */
     if (strcmp(szKey, "SendNotify") == 0) {
-        SetTrieValue(GetArrayCell(g_hFeatures, g_iID), "Notify", (szValue[0] != '0'));
+        view_as<StringMap>(g_hFeatures.Get(g_iID)).SetValue("Notify", (szValue[0] != '0'));
         return SMCParse_Continue;
     }
 
@@ -329,7 +331,7 @@ public SMCResult OnKeyValue(Handle hSMC, const char[] szKey, const char[] szValu
     return SMCParse_HaltFail;
 }
 
-public SMCResult OnEndSection(Handle hSMC) {
+public SMCResult OnEndSection(SMCParser hSMC) {
     return SMCParse_Continue;
 }
 
@@ -341,20 +343,20 @@ public Action OnCommandExecuted(int iClient, const char[] szCommand, int iArgC) 
         return Plugin_Continue;
 
     char szBuffer[2][64];
-    int iLength = GetArraySize(g_hFeatures);
+    int iLength = g_hFeatures.Length;
 
     int iListenerState;
     bool bNotify;
 
     for (int i; i < iLength; i++) {
-        Handle hFeatureInformation = GetArrayCell(g_hFeatures, i);
-        GetTrieString(hFeatureInformation, "Command", SZFA(szBuffer, 0));
+        StringMap hFeatureInformation = g_hFeatures.Get(i);
+        hFeatureInformation.GetString("Command", SZFA(szBuffer, 0));
         ExplodeString(szBuffer[0], " ", szBuffer, sizeof(szBuffer), sizeof(szBuffer[]), false);
 
         if (strcmp(szBuffer[0], szCommand) == 0) {
-            GetTrieValue(hFeatureInformation, "RestrictAccess", iListenerState);
-            GetTrieValue(hFeatureInformation, "Notify", bNotify);
-            GetTrieString(hFeatureInformation, "Feature", szBuffer[0], sizeof(szBuffer[]));
+            hFeatureInformation.GetValue("RestrictAccess", iListenerState);
+            hFeatureInformation.GetValue("Notify", bNotify);
+            hFeatureInformation.GetString("Feature", szBuffer[0], sizeof(szBuffer[]));
             break;
         }
     }
