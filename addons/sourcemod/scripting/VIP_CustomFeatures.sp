@@ -40,7 +40,7 @@
  * @section Constants
  */
 #define PLUGIN_DESCRIPTION  "Custom Items in VIP Menu."
-#define PLUGIN_VERSION      "1.3.3"
+#define PLUGIN_VERSION      "1.3.4"
 #define PLUGIN_AUTHOR       "CrazyHackGUT aka Kruzya"
 #define PLUGIN_NAME         "[VIP] Custom Features"
 #define PLUGIN_URL          "https://kruzefag.ru/"
@@ -339,7 +339,8 @@ public SMCResult OnEndSection(SMCParser hSMC) {
  * @section Command Listener
  */
 public Action OnCommandExecuted(int iClient, const char[] szCommand, int iArgC) {
-    if (iClient == 0)
+    // Command listeners also fire for clients that are connected but not in game yet.
+    if (iClient == 0 || !IsClientInGame(iClient))
         return Plugin_Continue;
 
     char szBuffer[2][64];
